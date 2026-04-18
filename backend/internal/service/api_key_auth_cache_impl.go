@@ -14,7 +14,7 @@ import (
 	"github.com/dgraph-io/ristretto"
 )
 
-const apiKeyAuthSnapshotVersion = 5 // v5: added TotalRecharged for percentage threshold
+const apiKeyAuthSnapshotVersion = 7 // v7: added User.RPMLimit for cross-group per-user RPM throttling
 
 type apiKeyAuthCacheConfig struct {
 	l1Size        int
@@ -232,6 +232,7 @@ func (s *APIKeyService) snapshotFromAPIKey(apiKey *APIKey) *APIKeyAuthSnapshot {
 			BalanceNotifyThreshold:     apiKey.User.BalanceNotifyThreshold,
 			BalanceNotifyExtraEmails:   apiKey.User.BalanceNotifyExtraEmails,
 			TotalRecharged:             apiKey.User.TotalRecharged,
+			RPMLimit:                   apiKey.User.RPMLimit,
 		},
 	}
 	if apiKey.Group != nil {
@@ -258,6 +259,7 @@ func (s *APIKeyService) snapshotFromAPIKey(apiKey *APIKey) *APIKeyAuthSnapshot {
 			AllowMessagesDispatch:           apiKey.Group.AllowMessagesDispatch,
 			DefaultMappedModel:              apiKey.Group.DefaultMappedModel,
 			MessagesDispatchModelConfig:     apiKey.Group.MessagesDispatchModelConfig,
+			RPMLimit:                        apiKey.Group.RPMLimit,
 		}
 	}
 	return snapshot
@@ -294,6 +296,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			BalanceNotifyThreshold:     snapshot.User.BalanceNotifyThreshold,
 			BalanceNotifyExtraEmails:   snapshot.User.BalanceNotifyExtraEmails,
 			TotalRecharged:             snapshot.User.TotalRecharged,
+			RPMLimit:                   snapshot.User.RPMLimit,
 		},
 	}
 	if snapshot.Group != nil {
@@ -321,6 +324,7 @@ func (s *APIKeyService) snapshotToAPIKey(key string, snapshot *APIKeyAuthSnapsho
 			AllowMessagesDispatch:           snapshot.Group.AllowMessagesDispatch,
 			DefaultMappedModel:              snapshot.Group.DefaultMappedModel,
 			MessagesDispatchModelConfig:     snapshot.Group.MessagesDispatchModelConfig,
+			RPMLimit:                        snapshot.Group.RPMLimit,
 		}
 	}
 	s.compileAPIKeyIPRules(apiKey)

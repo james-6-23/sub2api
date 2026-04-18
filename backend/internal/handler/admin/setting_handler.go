@@ -156,6 +156,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		DefaultConcurrency:                   settings.DefaultConcurrency,
 		DefaultBalance:                       settings.DefaultBalance,
 		DefaultSubscriptions:                 defaultSubscriptions,
+		DefaultUserRPMLimit:                  settings.DefaultUserRPMLimit,
 		EnableModelFallback:                  settings.EnableModelFallback,
 		FallbackModelAnthropic:               settings.FallbackModelAnthropic,
 		FallbackModelOpenAI:                  settings.FallbackModelOpenAI,
@@ -279,6 +280,8 @@ type UpdateSettingsRequest struct {
 	DefaultConcurrency   int                              `json:"default_concurrency"`
 	DefaultBalance       float64                          `json:"default_balance"`
 	DefaultSubscriptions []dto.DefaultSubscriptionSetting `json:"default_subscriptions"`
+	// DefaultUserRPMLimit 新用户默认 RPM 限制（0 或负数 = 不限制）。
+	DefaultUserRPMLimit int `json:"default_user_rpm_limit"`
 
 	// Model fallback configuration
 	EnableModelFallback      bool   `json:"enable_model_fallback"`
@@ -364,6 +367,10 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 	}
 	if req.DefaultBalance < 0 {
 		req.DefaultBalance = 0
+	}
+	// 新用户默认 RPM：负数归 0（不限制），避免误入库。
+	if req.DefaultUserRPMLimit < 0 {
+		req.DefaultUserRPMLimit = 0
 	}
 	// 通用表格配置：兼容旧客户端未传字段时保留当前值。
 	if req.TableDefaultPageSize <= 0 {
@@ -844,6 +851,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		DefaultConcurrency:               req.DefaultConcurrency,
 		DefaultBalance:                   req.DefaultBalance,
 		DefaultSubscriptions:             defaultSubscriptions,
+		DefaultUserRPMLimit:              req.DefaultUserRPMLimit,
 		EnableModelFallback:              req.EnableModelFallback,
 		FallbackModelAnthropic:           req.FallbackModelAnthropic,
 		FallbackModelOpenAI:              req.FallbackModelOpenAI,
@@ -1057,6 +1065,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		DefaultConcurrency:                   updatedSettings.DefaultConcurrency,
 		DefaultBalance:                       updatedSettings.DefaultBalance,
 		DefaultSubscriptions:                 updatedDefaultSubscriptions,
+		DefaultUserRPMLimit:                  updatedSettings.DefaultUserRPMLimit,
 		EnableModelFallback:                  updatedSettings.EnableModelFallback,
 		FallbackModelAnthropic:               updatedSettings.FallbackModelAnthropic,
 		FallbackModelOpenAI:                  updatedSettings.FallbackModelOpenAI,
@@ -1303,6 +1312,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if !equalDefaultSubscriptions(before.DefaultSubscriptions, after.DefaultSubscriptions) {
 		changed = append(changed, "default_subscriptions")
+	}
+	if before.DefaultUserRPMLimit != after.DefaultUserRPMLimit {
+		changed = append(changed, "default_user_rpm_limit")
 	}
 	if before.EnableModelFallback != after.EnableModelFallback {
 		changed = append(changed, "enable_model_fallback")

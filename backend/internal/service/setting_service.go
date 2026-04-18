@@ -592,6 +592,12 @@ func (s *SettingService) UpdateSettings(ctx context.Context, settings *SystemSet
 		return fmt.Errorf("marshal default subscriptions: %w", err)
 	}
 	updates[SettingKeyDefaultSubscriptions] = string(defaultSubsJSON)
+	// 负数视为 0（不限制），保持与 admin normalizeRPMLimit 一致。
+	defaultRPM := settings.DefaultUserRPMLimit
+	if defaultRPM < 0 {
+		defaultRPM = 0
+	}
+	updates[SettingKeyDefaultUserRPMLimit] = strconv.Itoa(defaultRPM)
 
 	// Model fallback configuration
 	updates[SettingKeyEnableModelFallback] = strconv.FormatBool(settings.EnableModelFallback)
@@ -919,6 +925,19 @@ func (s *SettingService) GetDefaultSubscriptions(ctx context.Context) []DefaultS
 	return parseDefaultSubscriptions(value)
 }
 
+// GetDefaultUserRPMLimit 获取新用户默认 RPM 限制。
+// 未配置或非法值一律返回 0（不限制）。
+func (s *SettingService) GetDefaultUserRPMLimit(ctx context.Context) int {
+	value, err := s.settingRepo.GetValue(ctx, SettingKeyDefaultUserRPMLimit)
+	if err != nil {
+		return 0
+	}
+	if v, err := strconv.Atoi(value); err == nil && v > 0 {
+		return v
+	}
+	return 0
+}
+
 // InitializeDefaultSettings 初始化默认设置
 func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	// 检查是否已有设置
@@ -950,6 +969,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyDefaultConcurrency:               strconv.Itoa(s.cfg.Default.UserConcurrency),
 		SettingKeyDefaultBalance:                   strconv.FormatFloat(s.cfg.Default.UserBalance, 'f', 8, 64),
 		SettingKeyDefaultSubscriptions:             "[]",
+		SettingKeyDefaultUserRPMLimit:              "0",
 		SettingKeySMTPPort:                         "587",
 		SettingKeySMTPUseTLS:                       "false",
 		// Model fallback defaults
@@ -1030,6 +1050,13 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 		result.DefaultConcurrency = concurrency
 	} else {
 		result.DefaultConcurrency = s.cfg.Default.UserConcurrency
+	}
+
+	// 默认用户 RPM 限制；缺省或非法值都归 0（不限制）。
+	if rpm, err := strconv.Atoi(settings[SettingKeyDefaultUserRPMLimit]); err == nil && rpm > 0 {
+		result.DefaultUserRPMLimit = rpm
+	} else {
+		result.DefaultUserRPMLimit = 0
 	}
 
 	// 解析浮点数类型

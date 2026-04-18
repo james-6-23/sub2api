@@ -59,6 +59,11 @@ type Group struct {
 	DefaultMappedModel          string
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig
 
+	// RPMLimit 每个 API Key 每分钟最大请求数（0 = 不限制）。
+	// 用户侧限流：当 API Key 绑定到本分组时，该 Key 的每分钟请求数不得超过此值。
+	// 计数在 Redis 中按 api_key 聚合，本字段仅存储策略值，由管理员配置。
+	RPMLimit int
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 

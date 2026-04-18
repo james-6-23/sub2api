@@ -1379,6 +1379,11 @@ export default {
       copyPassword: 'Copy password',
       creating: 'Creating...',
       updating: 'Updating...',
+      form: {
+        rpmLimit: 'Requests Per Minute (RPM)',
+        rpmLimitPlaceholder: '0 = unlimited (falls back to system default)',
+        rpmLimitHint: 'Max requests per minute for this user; 0 = unlimited. Only applied when the target group has no rpm_limit set.'
+      },
       columns: {
         user: 'User',
         email: 'Email',
@@ -1616,7 +1621,10 @@ export default {
         platform: 'Platform',
         rateMultiplier: 'Rate Multiplier',
         status: 'Status',
-        exclusive: 'Exclusive Group'
+        exclusive: 'Exclusive Group',
+        rpmLimit: 'Requests Per Minute (RPM)',
+        rpmLimitPlaceholder: '0 = unlimited',
+        rpmLimitHint: 'Max requests per minute for each user in this group; 0 = unlimited. Falls back to user-level RPM when not set here.'
       },
       enterGroupName: 'Enter group name',
       optionalDescription: 'Optional description',
@@ -4388,6 +4396,8 @@ export default {
         defaultBalanceHint: 'Initial balance for new users',
         defaultConcurrency: 'Default Concurrency',
         defaultConcurrencyHint: 'Maximum concurrent requests for new users',
+        defaultUserRpmLimit: 'Default User RPM Limit',
+        defaultUserRpmLimitHint: 'Default max requests per minute for new users; 0 = unlimited. Only applied when the target group has no rpm_limit set.',
         defaultSubscriptions: 'Default Subscriptions',
         defaultSubscriptionsHint: 'Auto-assign these subscriptions when a new user is created or registered',
         addDefaultSubscription: 'Add Default Subscription',

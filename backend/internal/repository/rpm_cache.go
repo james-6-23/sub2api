@@ -31,6 +31,16 @@ const (
 	// 格式: rpm:{accountID}:{minuteTimestamp}
 	rpmKeyPrefix = "rpm:"
 
+	// 用户在分组下的 RPM 计数器键前缀
+	// 格式: rpm:ug:{userID}:{groupID}:{minuteTimestamp}
+	// 前缀 ug = user-group，区别于账号级 rpm: 前缀
+	userGroupRPMKeyPrefix = "rpm:ug:"
+
+	// 用户跨所有分组的 RPM 计数器键前缀
+	// 格式: rpm:u:{userID}:{minuteTimestamp}
+	// 前缀 u = user，与 ug 区分，独立于分组的计数
+	userRPMKeyPrefix = "rpm:u:"
+
 	// RPM 计数器 TTL（120 秒，覆盖当前分钟窗口 + 冗余）
 	rpmKeyTTL = 120 * time.Second
 )
@@ -138,4 +148,121 @@ func (c *RPMCacheImpl) GetRPMBatch(ctx context.Context, accountIDs []int64) (map
 		}
 	}
 	return result, nil
+}
+
+// UserRPMCacheImpl 用户侧 RPM 计数器的 Redis 实现，覆盖两种粒度：
+//   - (用户, 分组)：键 rpm:ug:{userID}:{groupID}:{minute}，用于 Group.RPMLimit；
+//   - 用户跨分组：键 rpm:u:{userID}:{minute}，用于 User.RPMLimit。
+//
+// 复用单一 Redis 客户端与分钟时间源逻辑，避免多个结构体带来的维护成本。
+type UserRPMCacheImpl struct {
+	rdb *redis.Client
+}
+
+// NewUserRPMCache 构造用户侧 RPM 缓存。
+func NewUserRPMCache(rdb *redis.Client) service.UserRPMCache {
+	return &UserRPMCacheImpl{rdb: rdb}
+}
+
+// currentMinute 通过 Redis 服务端时间获取当前分钟窗口戳，避免多实例时钟漂移。
+func (c *UserRPMCacheImpl) currentMinute(ctx context.Context) (int64, error) {
+	serverTime, err := c.rdb.Time(ctx).Result()
+	if err != nil {
+		return 0, fmt.Errorf("redis TIME: %w", err)
+	}
+	return serverTime.Unix() / 60, nil
+}
+
+// incr 以原子方式执行 INCR + EXPIRE 并返回新计数。
+// 使用 TxPipeline（MULTI/EXEC）保证原子性，同时满足 Redis Cluster 单 key 约束。
+func (c *UserRPMCacheImpl) incr(ctx context.Context, key string) (int, error) {
+	pipe := c.rdb.TxPipeline()
+	incrCmd := pipe.Incr(ctx, key)
+	pipe.Expire(ctx, key, rpmKeyTTL)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return 0, err
+	}
+	return int(incrCmd.Val()), nil
+}
+
+// get 读取 key 的当前计数；不存在时返回 0。
+func (c *UserRPMCacheImpl) get(ctx context.Context, key string) (int, error) {
+	val, err := c.rdb.Get(ctx, key).Int()
+	if errors.Is(err, redis.Nil) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	return val, nil
+}
+
+// currentUserGroupKey 构造 rpm:ug:{userID}:{groupID}:{minuteTimestamp}
+func (c *UserRPMCacheImpl) currentUserGroupKey(ctx context.Context, userID, groupID int64) (string, error) {
+	minuteTS, err := c.currentMinute(ctx)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s%d:%d:%d", userGroupRPMKeyPrefix, userID, groupID, minuteTS), nil
+}
+
+// currentUserKey 构造 rpm:u:{userID}:{minuteTimestamp}
+func (c *UserRPMCacheImpl) currentUserKey(ctx context.Context, userID int64) (string, error) {
+	minuteTS, err := c.currentMinute(ctx)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s%d:%d", userRPMKeyPrefix, userID, minuteTS), nil
+}
+
+// IncrementUserGroupRPM 原子递增 (user, group) 在当前分钟的计数并返回新计数。
+func (c *UserRPMCacheImpl) IncrementUserGroupRPM(ctx context.Context, userID, groupID int64) (int, error) {
+	key, err := c.currentUserGroupKey(ctx, userID, groupID)
+	if err != nil {
+		return 0, fmt.Errorf("user-group rpm increment: %w", err)
+	}
+	count, err := c.incr(ctx, key)
+	if err != nil {
+		return 0, fmt.Errorf("user-group rpm increment: %w", err)
+	}
+	return count, nil
+}
+
+// GetUserGroupRPM 获取 (user, group) 在当前分钟的计数。
+func (c *UserRPMCacheImpl) GetUserGroupRPM(ctx context.Context, userID, groupID int64) (int, error) {
+	key, err := c.currentUserGroupKey(ctx, userID, groupID)
+	if err != nil {
+		return 0, fmt.Errorf("user-group rpm get: %w", err)
+	}
+	val, err := c.get(ctx, key)
+	if err != nil {
+		return 0, fmt.Errorf("user-group rpm get: %w", err)
+	}
+	return val, nil
+}
+
+// IncrementUserRPM 原子递增用户跨所有分组在当前分钟的计数并返回新计数。
+func (c *UserRPMCacheImpl) IncrementUserRPM(ctx context.Context, userID int64) (int, error) {
+	key, err := c.currentUserKey(ctx, userID)
+	if err != nil {
+		return 0, fmt.Errorf("user rpm increment: %w", err)
+	}
+	count, err := c.incr(ctx, key)
+	if err != nil {
+		return 0, fmt.Errorf("user rpm increment: %w", err)
+	}
+	return count, nil
+}
+
+// GetUserRPM 获取用户跨所有分组在当前分钟的计数。
+func (c *UserRPMCacheImpl) GetUserRPM(ctx context.Context, userID int64) (int, error) {
+	key, err := c.currentUserKey(ctx, userID)
+	if err != nil {
+		return 0, fmt.Errorf("user rpm get: %w", err)
+	}
+	val, err := c.get(ctx, key)
+	if err != nil {
+		return 0, fmt.Errorf("user rpm get: %w", err)
+	}
+	return val, nil
 }

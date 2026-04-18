@@ -25,6 +25,9 @@ type User struct {
 	BalanceNotifyExtraEmails   []NotifyEmailEntry `json:"balance_notify_extra_emails"`
 	TotalRecharged             float64            `json:"total_recharged"`
 
+	// RPMLimit 用户级每分钟最大请求数（0 = 不限制），跨所有分组生效。
+	RPMLimit int `json:"rpm_limit"`
+
 	APIKeys       []APIKey           `json:"api_keys,omitempty"`
 	Subscriptions []UserSubscription `json:"subscriptions,omitempty"`
 }
@@ -105,6 +108,9 @@ type Group struct {
 	// 账号过滤控制（仅 OpenAI/Antigravity 平台有效）
 	RequireOAuthOnly  bool `json:"require_oauth_only"`
 	RequirePrivacySet bool `json:"require_privacy_set"`
+
+	// RPMLimit 每个用户在本分组下每分钟最大请求数（0 = 不限制）
+	RPMLimit int `json:"rpm_limit"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

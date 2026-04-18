@@ -477,6 +477,12 @@ func init() {
 	groupDescMessagesDispatchModelConfig := groupFields[26].Descriptor()
 	// group.DefaultMessagesDispatchModelConfig holds the default value on creation for the messages_dispatch_model_config field.
 	group.DefaultMessagesDispatchModelConfig = groupDescMessagesDispatchModelConfig.Default.(domain.OpenAIMessagesDispatchModelConfig)
+	// groupDescRpmLimit is the schema descriptor for rpm_limit field.
+	groupDescRpmLimit := groupFields[27].Descriptor()
+	// group.DefaultRpmLimit holds the default value on creation for the rpm_limit field.
+	group.DefaultRpmLimit = groupDescRpmLimit.Default.(int)
+	// group.RpmLimitValidator is a validator for the "rpm_limit" field. It is called by the builders before save.
+	group.RpmLimitValidator = groupDescRpmLimit.Validators[0].(func(int) error)
 	idempotencyrecordMixin := schema.IdempotencyRecord{}.Mixin()
 	idempotencyrecordMixinFields0 := idempotencyrecordMixin[0].Fields()
 	_ = idempotencyrecordMixinFields0
@@ -1313,6 +1319,12 @@ func init() {
 	userDescTotalRecharged := userFields[15].Descriptor()
 	// user.DefaultTotalRecharged holds the default value on creation for the total_recharged field.
 	user.DefaultTotalRecharged = userDescTotalRecharged.Default.(float64)
+	// userDescRpmLimit is the schema descriptor for rpm_limit field.
+	userDescRpmLimit := userFields[16].Descriptor()
+	// user.DefaultRpmLimit holds the default value on creation for the rpm_limit field.
+	user.DefaultRpmLimit = userDescRpmLimit.Default.(int)
+	// user.RpmLimitValidator is a validator for the "rpm_limit" field. It is called by the builders before save.
+	user.RpmLimitValidator = userDescRpmLimit.Validators[0].(func(int) error)
 	userallowedgroupFields := schema.UserAllowedGroup{}.Fields()
 	_ = userallowedgroupFields
 	// userallowedgroupDescCreatedAt is the schema descriptor for created_at field.

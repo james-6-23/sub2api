@@ -43,6 +43,11 @@ type APIKeyAuthUserSnapshot struct {
 	BalanceNotifyThreshold     *float64           `json:"balance_notify_threshold,omitempty"`
 	BalanceNotifyExtraEmails   []NotifyEmailEntry `json:"balance_notify_extra_emails,omitempty"`
 	TotalRecharged             float64            `json:"total_recharged"`
+
+	// RPMLimit 用户级 RPM 限制（0 = 不限制），跨所有分组生效。
+	// 用于 BillingCacheService.CheckBillingEligibility 的热路径检查，
+	// 无需回源数据库即可判定是否需要计数。
+	RPMLimit int `json:"rpm_limit,omitempty"`
 }
 
 // APIKeyAuthGroupSnapshot 分组快照
@@ -76,6 +81,11 @@ type APIKeyAuthGroupSnapshot struct {
 	AllowMessagesDispatch       bool                              `json:"allow_messages_dispatch"`
 	DefaultMappedModel          string                            `json:"default_mapped_model,omitempty"`
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig `json:"messages_dispatch_model_config,omitempty"`
+
+	// RPMLimit 分组级 RPM 限制（0 = 不限制）。
+	// 用于 BillingCacheService.CheckBillingEligibility 的热路径检查，
+	// 无需回源数据库即可判定是否需要计数。
+	RPMLimit int `json:"rpm_limit,omitempty"`
 }
 
 // APIKeyAuthCacheEntry 缓存条目，支持负缓存

@@ -281,6 +281,20 @@ func (_c *UserCreate) SetNillableTotalRecharged(v *float64) *UserCreate {
 	return _c
 }
 
+// SetRpmLimit sets the "rpm_limit" field.
+func (_c *UserCreate) SetRpmLimit(v int) *UserCreate {
+	_c.mutation.SetRpmLimit(v)
+	return _c
+}
+
+// SetNillableRpmLimit sets the "rpm_limit" field if the given value is not nil.
+func (_c *UserCreate) SetNillableRpmLimit(v *int) *UserCreate {
+	if v != nil {
+		_c.SetRpmLimit(*v)
+	}
+	return _c
+}
+
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by IDs.
 func (_c *UserCreate) AddAPIKeyIDs(ids ...int64) *UserCreate {
 	_c.mutation.AddAPIKeyIDs(ids...)
@@ -526,6 +540,10 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultTotalRecharged
 		_c.mutation.SetTotalRecharged(v)
 	}
+	if _, ok := _c.mutation.RpmLimit(); !ok {
+		v := user.DefaultRpmLimit
+		_c.mutation.SetRpmLimit(v)
+	}
 	return nil
 }
 
@@ -600,6 +618,14 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.TotalRecharged(); !ok {
 		return &ValidationError{Name: "total_recharged", err: errors.New(`ent: missing required field "User.total_recharged"`)}
+	}
+	if _, ok := _c.mutation.RpmLimit(); !ok {
+		return &ValidationError{Name: "rpm_limit", err: errors.New(`ent: missing required field "User.rpm_limit"`)}
+	}
+	if v, ok := _c.mutation.RpmLimit(); ok {
+		if err := user.RpmLimitValidator(v); err != nil {
+			return &ValidationError{Name: "rpm_limit", err: fmt.Errorf(`ent: validator failed for field "User.rpm_limit": %w`, err)}
+		}
 	}
 	return nil
 }
@@ -703,6 +729,10 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.TotalRecharged(); ok {
 		_spec.SetField(user.FieldTotalRecharged, field.TypeFloat64, value)
 		_node.TotalRecharged = value
+	}
+	if value, ok := _c.mutation.RpmLimit(); ok {
+		_spec.SetField(user.FieldRpmLimit, field.TypeInt, value)
+		_node.RpmLimit = value
 	}
 	if nodes := _c.mutation.APIKeysIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -1184,6 +1214,24 @@ func (u *UserUpsert) AddTotalRecharged(v float64) *UserUpsert {
 	return u
 }
 
+// SetRpmLimit sets the "rpm_limit" field.
+func (u *UserUpsert) SetRpmLimit(v int) *UserUpsert {
+	u.Set(user.FieldRpmLimit, v)
+	return u
+}
+
+// UpdateRpmLimit sets the "rpm_limit" field to the value that was provided on create.
+func (u *UserUpsert) UpdateRpmLimit() *UserUpsert {
+	u.SetExcluded(user.FieldRpmLimit)
+	return u
+}
+
+// AddRpmLimit adds v to the "rpm_limit" field.
+func (u *UserUpsert) AddRpmLimit(v int) *UserUpsert {
+	u.Add(user.FieldRpmLimit, v)
+	return u
+}
+
 // UpdateNewValues updates the mutable fields using the new values that were set on create.
 // Using this option is equivalent to using:
 //
@@ -1534,6 +1582,27 @@ func (u *UserUpsertOne) AddTotalRecharged(v float64) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateTotalRecharged() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateTotalRecharged()
+	})
+}
+
+// SetRpmLimit sets the "rpm_limit" field.
+func (u *UserUpsertOne) SetRpmLimit(v int) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetRpmLimit(v)
+	})
+}
+
+// AddRpmLimit adds v to the "rpm_limit" field.
+func (u *UserUpsertOne) AddRpmLimit(v int) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.AddRpmLimit(v)
+	})
+}
+
+// UpdateRpmLimit sets the "rpm_limit" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateRpmLimit() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateRpmLimit()
 	})
 }
 
@@ -2053,6 +2122,27 @@ func (u *UserUpsertBulk) AddTotalRecharged(v float64) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateTotalRecharged() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateTotalRecharged()
+	})
+}
+
+// SetRpmLimit sets the "rpm_limit" field.
+func (u *UserUpsertBulk) SetRpmLimit(v int) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetRpmLimit(v)
+	})
+}
+
+// AddRpmLimit adds v to the "rpm_limit" field.
+func (u *UserUpsertBulk) AddRpmLimit(v int) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.AddRpmLimit(v)
+	})
+}
+
+// UpdateRpmLimit sets the "rpm_limit" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateRpmLimit() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateRpmLimit()
 	})
 }
 

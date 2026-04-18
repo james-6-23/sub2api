@@ -74,6 +74,9 @@ type SystemSettings struct {
 	DefaultConcurrency   int
 	DefaultBalance       float64
 	DefaultSubscriptions []DefaultSubscriptionSetting
+	// DefaultUserRPMLimit 新注册或管理员创建用户时，若未显式指定 rpm_limit 时的默认值。
+	// 0 = 不限制；仅在分组未设置 rpm_limit 时回落生效（见 BillingCacheService.checkRPM）。
+	DefaultUserRPMLimit int
 
 	// Model fallback configuration
 	EnableModelFallback      bool   `json:"enable_model_fallback"`

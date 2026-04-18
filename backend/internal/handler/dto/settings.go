@@ -92,6 +92,8 @@ type SystemSettings struct {
 	DefaultConcurrency   int                          `json:"default_concurrency"`
 	DefaultBalance       float64                      `json:"default_balance"`
 	DefaultSubscriptions []DefaultSubscriptionSetting `json:"default_subscriptions"`
+	// DefaultUserRPMLimit 新用户默认 RPM 限制（0 = 不限制），仅在分组未设置 rpm_limit 时兜底生效。
+	DefaultUserRPMLimit int `json:"default_user_rpm_limit"`
 
 	// Model fallback configuration
 	EnableModelFallback      bool   `json:"enable_model_fallback"`

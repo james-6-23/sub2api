@@ -145,6 +145,14 @@ func (Group) Fields() []ent.Field {
 			Default(domain.OpenAIMessagesDispatchModelConfig{}).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}).
 			Comment("OpenAI Messages 调度模型配置：按 Claude 系列/精确模型映射到目标 GPT 模型"),
+
+		// 用户侧 RPM 限流 (added by migration 108)
+		// 分组下每个 API Key 每分钟的最大请求数，0 = 不限制。
+		// 计数在 Redis 中按 api_key 维度聚合，本字段仅存策略值。
+		field.Int("rpm_limit").
+			Default(0).
+			NonNegative().
+			Comment("每个 API Key 每分钟最大请求数（0 = 不限制），绑定本分组的 Key 生效"),
 	}
 }
 

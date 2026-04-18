@@ -29,6 +29,8 @@ export interface SystemSettings {
   default_balance: number
   default_concurrency: number
   default_subscriptions: DefaultSubscriptionSetting[]
+  /** 新用户默认 RPM 限制（0 = 不限制），仅在分组未设置 rpm_limit 时兜底生效 */
+  default_user_rpm_limit: number
   // OEM settings
   site_name: string
   site_logo: string
@@ -158,6 +160,7 @@ export interface UpdateSettingsRequest {
   default_balance?: number
   default_concurrency?: number
   default_subscriptions?: DefaultSubscriptionSetting[]
+  default_user_rpm_limit?: number
   site_name?: string
   site_logo?: string
   site_subtitle?: string

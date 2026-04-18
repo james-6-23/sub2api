@@ -37,6 +37,11 @@ type User struct {
 	BalanceNotifyExtraEmails   []NotifyEmailEntry
 	TotalRecharged             float64
 
+	// RPMLimit 用户级每分钟最大请求数（0 = 不限制）。
+	// 该值跨所有分组累计：counter 键为 rpm:u:{userID}:{minute}。
+	// 与 Group.RPMLimit 两层独立校验，任一超限触发 429。
+	RPMLimit int
+
 	APIKeys       []APIKey
 	Subscriptions []UserSubscription
 }

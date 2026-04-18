@@ -187,6 +187,12 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		defaultConcurrency = s.settingService.GetDefaultConcurrency(ctx)
 	}
 
+	// 新用户默认 RPM（0 = 不限制），仅在分组未设置 rpm_limit 时兜底生效。
+	var defaultRPMLimit int
+	if s.settingService != nil {
+		defaultRPMLimit = s.settingService.GetDefaultUserRPMLimit(ctx)
+	}
+
 	// 创建用户
 	user := &User{
 		Email:        email,
@@ -195,6 +201,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		Balance:      defaultBalance,
 		Concurrency:  defaultConcurrency,
 		Status:       StatusActive,
+		RPMLimit:     defaultRPMLimit,
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
@@ -472,9 +479,11 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 			// 新用户默认值。
 			defaultBalance := s.cfg.Default.UserBalance
 			defaultConcurrency := s.cfg.Default.UserConcurrency
+			var defaultRPMLimit int
 			if s.settingService != nil {
 				defaultBalance = s.settingService.GetDefaultBalance(ctx)
 				defaultConcurrency = s.settingService.GetDefaultConcurrency(ctx)
+				defaultRPMLimit = s.settingService.GetDefaultUserRPMLimit(ctx)
 			}
 
 			newUser := &User{
@@ -485,6 +494,7 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				Balance:      defaultBalance,
 				Concurrency:  defaultConcurrency,
 				Status:       StatusActive,
+				RPMLimit:     defaultRPMLimit,
 			}
 
 			if err := s.userRepo.Create(ctx, newUser); err != nil {
@@ -586,9 +596,11 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 
 			defaultBalance := s.cfg.Default.UserBalance
 			defaultConcurrency := s.cfg.Default.UserConcurrency
+			var defaultRPMLimit int
 			if s.settingService != nil {
 				defaultBalance = s.settingService.GetDefaultBalance(ctx)
 				defaultConcurrency = s.settingService.GetDefaultConcurrency(ctx)
+				defaultRPMLimit = s.settingService.GetDefaultUserRPMLimit(ctx)
 			}
 
 			newUser := &User{
@@ -599,6 +611,7 @@ func (s *AuthService) LoginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 				Balance:      defaultBalance,
 				Concurrency:  defaultConcurrency,
 				Status:       StatusActive,
+				RPMLimit:     defaultRPMLimit,
 			}
 
 			if s.entClient != nil && invitationRedeemCode != nil {

@@ -111,6 +111,8 @@ type CreateUserInput struct {
 	Balance       float64
 	Concurrency   int
 	AllowedGroups []int64
+	// RPMLimit 用户级每分钟最大请求数（nil 或负数 = 不限制），跨所有分组生效。
+	RPMLimit *int
 }
 
 type UpdateUserInput struct {
@@ -125,6 +127,8 @@ type UpdateUserInput struct {
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]*rate，nil 表示删除该分组的专属倍率
 	GroupRates map[int64]*float64
+	// RPMLimit 用户级每分钟最大请求数（nil = 不变，负数 / 0 = 不限制）。
+	RPMLimit *int
 }
 
 type CreateGroupInput struct {
@@ -159,6 +163,8 @@ type CreateGroupInput struct {
 	MessagesDispatchModelConfig OpenAIMessagesDispatchModelConfig
 	// 从指定分组复制账号（创建分组后在同一事务内绑定）
 	CopyAccountsFromGroupIDs []int64
+	// RPMLimit 每个 API Key 每分钟最大请求数（0 或负数 = 不限制），用户侧限流
+	RPMLimit *int
 }
 
 type UpdateGroupInput struct {
@@ -194,6 +200,8 @@ type UpdateGroupInput struct {
 	MessagesDispatchModelConfig *OpenAIMessagesDispatchModelConfig
 	// 从指定分组复制账号（同步操作：先清空当前分组的账号绑定，再绑定源分组的账号）
 	CopyAccountsFromGroupIDs []int64
+	// RPMLimit 每个 API Key 每分钟最大请求数（nil = 不变，0 或负数 = 不限制）
+	RPMLimit *int
 }
 
 type CreateAccountInput struct {
@@ -548,6 +556,11 @@ func (s *adminServiceImpl) GetUser(ctx context.Context, id int64) (*User, error)
 }
 
 func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInput) (*User, error) {
+	// 未显式指定 rpm_limit 时，套用系统设置里的"新用户默认 RPM"。
+	rpmLimit := normalizeRPMLimit(input.RPMLimit)
+	if input.RPMLimit == nil && s.settingService != nil {
+		rpmLimit = s.settingService.GetDefaultUserRPMLimit(ctx)
+	}
 	user := &User{
 		Email:         input.Email,
 		Username:      input.Username,
@@ -557,6 +570,7 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 		Concurrency:   input.Concurrency,
 		Status:        StatusActive,
 		AllowedGroups: input.AllowedGroups,
+		RPMLimit:      rpmLimit,
 	}
 	if err := user.SetPassword(input.Password); err != nil {
 		return nil, err
@@ -599,6 +613,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	oldConcurrency := user.Concurrency
 	oldStatus := user.Status
 	oldRole := user.Role
+	oldRPMLimit := user.RPMLimit
 
 	if input.Email != "" {
 		user.Email = input.Email
@@ -628,6 +643,10 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 		user.AllowedGroups = *input.AllowedGroups
 	}
 
+	if input.RPMLimit != nil {
+		user.RPMLimit = normalizeRPMLimit(input.RPMLimit)
+	}
+
 	if err := s.userRepo.Update(ctx, user); err != nil {
 		return nil, err
 	}
@@ -640,7 +659,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	}
 
 	if s.authCacheInvalidator != nil {
-		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole {
+		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || user.RPMLimit != oldRPMLimit {
 			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, user.ID)
 		}
 	}
@@ -911,6 +930,7 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		RequirePrivacySet:               input.RequirePrivacySet,
 		DefaultMappedModel:              input.DefaultMappedModel,
 		MessagesDispatchModelConfig:     normalizeOpenAIMessagesDispatchModelConfig(input.MessagesDispatchModelConfig),
+		RPMLimit:                        normalizeRPMLimit(input.RPMLimit),
 	}
 	sanitizeGroupMessagesDispatchFields(group)
 	if err := s.groupRepo.Create(ctx, group); err != nil {
@@ -963,6 +983,14 @@ func normalizePrice(price *float64) *float64 {
 		return nil
 	}
 	return price
+}
+
+// normalizeRPMLimit 将 nil 或负数规范为 0（表示不限制），非负值原样返回
+func normalizeRPMLimit(v *int) int {
+	if v == nil || *v < 0 {
+		return 0
+	}
+	return *v
 }
 
 // validateFallbackGroup 校验降级分组的有效性
@@ -1141,6 +1169,9 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 	}
 	if input.MessagesDispatchModelConfig != nil {
 		group.MessagesDispatchModelConfig = normalizeOpenAIMessagesDispatchModelConfig(*input.MessagesDispatchModelConfig)
+	}
+	if input.RPMLimit != nil {
+		group.RPMLimit = normalizeRPMLimit(input.RPMLimit)
 	}
 	sanitizeGroupMessagesDispatchFields(group)
 

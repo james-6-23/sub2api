@@ -41,6 +41,8 @@ type CreateUserRequest struct {
 	Balance       float64 `json:"balance"`
 	Concurrency   int     `json:"concurrency"`
 	AllowedGroups []int64 `json:"allowed_groups"`
+	// RPMLimit 用户级每分钟最大请求数（0 或负数 = 不限制），跨所有分组生效。
+	RPMLimit *int `json:"rpm_limit"`
 }
 
 // UpdateUserRequest represents admin update user request
@@ -57,6 +59,8 @@ type UpdateUserRequest struct {
 	// GroupRates 用户专属分组倍率配置
 	// map[groupID]*rate，nil 表示删除该分组的专属倍率
 	GroupRates map[int64]*float64 `json:"group_rates"`
+	// RPMLimit 用户级每分钟最大请求数（nil = 不变，0 或负数 = 不限制），跨所有分组生效。
+	RPMLimit *int `json:"rpm_limit"`
 }
 
 // UpdateBalanceRequest represents balance update request
@@ -189,6 +193,7 @@ func (h *UserHandler) Create(c *gin.Context) {
 		Balance:       req.Balance,
 		Concurrency:   req.Concurrency,
 		AllowedGroups: req.AllowedGroups,
+		RPMLimit:      req.RPMLimit,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -224,6 +229,7 @@ func (h *UserHandler) Update(c *gin.Context) {
 		Status:        req.Status,
 		AllowedGroups: req.AllowedGroups,
 		GroupRates:    req.GroupRates,
+		RPMLimit:      req.RPMLimit,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)

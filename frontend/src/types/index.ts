@@ -46,6 +46,8 @@ export interface User {
   balance_notify_enabled: boolean
   balance_notify_threshold: number | null
   balance_notify_extra_emails: NotifyEmailEntry[]
+  // 用户级 RPM 限制（0 = 不限制），仅在分组未设置 rpm_limit 时兜底生效
+  rpm_limit?: number
   subscriptions?: UserSubscription[] // User's active subscriptions
   created_at: string
   updated_at: string
@@ -418,6 +420,8 @@ export interface Group {
   messages_dispatch_model_config?: OpenAIMessagesDispatchModelConfig
   require_oauth_only: boolean
   require_privacy_set: boolean
+  // 分组级 RPM 限制（每用户每分钟最大请求数；0 = 不限制）
+  rpm_limit?: number
   created_at: string
   updated_at: string
 }

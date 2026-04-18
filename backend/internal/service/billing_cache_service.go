@@ -87,6 +87,7 @@ type BillingCacheService struct {
 	userRepo              UserRepository
 	subRepo               UserSubscriptionRepository
 	apiKeyRateLimitLoader apiKeyRateLimitLoader
+	userRPMCache          UserRPMCache
 	cfg                   *config.Config
 	circuitBreaker        *billingCircuitBreaker
 
@@ -115,6 +116,13 @@ func NewBillingCacheService(cache BillingCache, userRepo UserRepository, subRepo
 	svc.circuitBreaker = newBillingCircuitBreaker(cfg.Billing.CircuitBreaker)
 	svc.startCacheWriteWorkers()
 	return svc
+}
+
+// SetUserRPMCache 注入用户侧 RPM 缓存（同时承载 user-group 与 user 两种粒度）。
+// 在 wire 构造完 BillingCacheService 后调用。单独的 setter 避免打破
+// NewBillingCacheService 既有签名（多个测试与构造点依赖此签名）。
+func (s *BillingCacheService) SetUserRPMCache(cache UserRPMCache) {
+	s.userRPMCache = cache
 }
 
 // Stop 关闭缓存写入工作池
@@ -661,6 +669,65 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 	if apiKey != nil && apiKey.HasRateLimits() {
 		if err := s.checkAPIKeyRateLimits(ctx, apiKey); err != nil {
 			return err
+		}
+	}
+
+	// RPM 限流：分组优先、用户兜底（fallback 模式）。
+	// 放在最后以避免为注定要失败的请求（余额不足、订阅过期等）增加计数。
+	if err := s.checkRPM(ctx, user, group); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// checkRPM 执行两级 RPM 限流，采用 fallback 语义：
+//
+//   - 若 Group.RPMLimit > 0：按 (用户, 分组) 聚合计数并与 Group.RPMLimit 比较；超限返回 ErrGroupRPMExceeded。
+//   - 否则若 User.RPMLimit > 0：按用户跨所有分组聚合计数并与 User.RPMLimit 比较；超限返回 ErrUserRPMExceeded。
+//   - 两者都未设置或为 0：不限流。
+//
+// 设计要点：
+//   - 为每个请求只计入一个 Redis 键，避免无意义的双重计数（如分组已设时不再增加用户级键，语义更清晰）。
+//   - 计数使用 (user, group) 或 user 维度而非 api_key 维度，杜绝“同一用户创建多个 Key 绕过 RPM”的路径。
+//   - Redis 故障一律 fail-open（打 warning，不阻塞业务）。
+//   - 这里采用“计入后对比”的方式，等价于超出限额即拒绝；即使某一次因 Redis 故障被 fail-open 放行，
+//     下一次窗口内命中的请求仍会被正确计数与拒绝。
+func (s *BillingCacheService) checkRPM(ctx context.Context, user *User, group *Group) error {
+	if s == nil || s.userRPMCache == nil || user == nil {
+		return nil
+	}
+
+	// 分组 RPM 优先
+	if group != nil && group.RPMLimit > 0 {
+		count, err := s.userRPMCache.IncrementUserGroupRPM(ctx, user.ID, group.ID)
+		if err != nil {
+			logger.LegacyPrintf(
+				"service.billing_cache",
+				"Warning: group rpm increment failed for user=%d group=%d: %v",
+				user.ID, group.ID, err,
+			)
+			return nil // fail-open
+		}
+		if count > group.RPMLimit {
+			return ErrGroupRPMExceeded
+		}
+		return nil
+	}
+
+	// 分组未设 → 回落到用户级 RPM
+	if user.RPMLimit > 0 {
+		count, err := s.userRPMCache.IncrementUserRPM(ctx, user.ID)
+		if err != nil {
+			logger.LegacyPrintf(
+				"service.billing_cache",
+				"Warning: user rpm increment failed for user=%d: %v",
+				user.ID, err,
+			)
+			return nil // fail-open
+		}
+		if count > user.RPMLimit {
+			return ErrUserRPMExceeded
 		}
 	}
 

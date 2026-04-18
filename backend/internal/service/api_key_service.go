@@ -36,6 +36,22 @@ var (
 	ErrAPIKeyRateLimit5hExceeded = infraerrors.TooManyRequests("API_KEY_RATE_5H_EXCEEDED", "api key 5小时限额已用完")
 	ErrAPIKeyRateLimit1dExceeded = infraerrors.TooManyRequests("API_KEY_RATE_1D_EXCEEDED", "api key 日限额已用完")
 	ErrAPIKeyRateLimit7dExceeded = infraerrors.TooManyRequests("API_KEY_RATE_7D_EXCEEDED", "api key 7天限额已用完")
+
+	// ErrGroupRPMExceeded signals that the current user has sent more requests
+	// per minute under this group than the administrator-configured limit.
+	// Message is in English on purpose (user requirement).
+	ErrGroupRPMExceeded = infraerrors.TooManyRequests(
+		"GROUP_RPM_EXCEEDED",
+		"Request rate limit exceeded: too many requests per minute for this group. Please slow down and retry in a moment.",
+	)
+
+	// ErrUserRPMExceeded signals that the current user has sent more requests
+	// per minute across all groups than the administrator-configured user-level limit.
+	// This is independent from ErrGroupRPMExceeded: either limit can trigger 429.
+	ErrUserRPMExceeded = infraerrors.TooManyRequests(
+		"USER_RPM_EXCEEDED",
+		"Request rate limit exceeded: too many requests per minute for this account. Please slow down and retry in a moment.",
+	)
 )
 
 const (

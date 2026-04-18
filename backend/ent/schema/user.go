@@ -88,6 +88,14 @@ func (User) Fields() []ent.Field {
 		field.Float("total_recharged").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
 			Default(0),
+
+		// 用户级 RPM 限流 (added by migration 109)
+		// 该用户跨所有分组每分钟最大请求数（0 = 不限制）。
+		// 与 Group.RPMLimit 两层独立：分组级按 (user, group) 计数，用户级按 user 跨分组汇总，任一触发即 429。
+		field.Int("rpm_limit").
+			Default(0).
+			NonNegative().
+			Comment("用户跨分组每分钟最大请求数（0 = 不限制），独立于 Group.RPMLimit"),
 	}
 }
 

@@ -1704,6 +1704,14 @@ func billingErrorDetails(err error) (status int, code, message string) {
 		msg := pkgerrors.Message(err)
 		return http.StatusTooManyRequests, "rate_limit_exceeded", msg
 	}
+	if errors.Is(err, service.ErrGroupRPMExceeded) {
+		msg := pkgerrors.Message(err)
+		return http.StatusTooManyRequests, "rate_limit_exceeded", msg
+	}
+	if errors.Is(err, service.ErrUserRPMExceeded) {
+		msg := pkgerrors.Message(err)
+		return http.StatusTooManyRequests, "rate_limit_exceeded", msg
+	}
 	msg := pkgerrors.Message(err)
 	if msg == "" {
 		logger.L().With(
