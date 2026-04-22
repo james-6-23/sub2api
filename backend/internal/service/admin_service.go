@@ -46,6 +46,8 @@ type AdminService interface {
 	GetGroupRateMultipliers(ctx context.Context, groupID int64) ([]UserGroupRateEntry, error)
 	ClearGroupRateMultipliers(ctx context.Context, groupID int64) error
 	BatchSetGroupRateMultipliers(ctx context.Context, groupID int64, entries []GroupRateMultiplierInput) error
+	ClearGroupRPMOverrides(ctx context.Context, groupID int64) error
+	BatchSetGroupRPMOverrides(ctx context.Context, groupID int64, entries []GroupRPMOverrideInput) error
 	UpdateGroupSortOrders(ctx context.Context, updates []GroupSortOrderUpdate) error
 
 	// API Key management (admin)
@@ -1318,6 +1320,20 @@ func (s *adminServiceImpl) BatchSetGroupRateMultipliers(ctx context.Context, gro
 		return nil
 	}
 	return s.userGroupRateRepo.SyncGroupRateMultipliers(ctx, groupID, entries)
+}
+
+func (s *adminServiceImpl) ClearGroupRPMOverrides(ctx context.Context, groupID int64) error {
+	if s.userGroupRateRepo == nil {
+		return nil
+	}
+	return s.userGroupRateRepo.ClearGroupRPMOverrides(ctx, groupID)
+}
+
+func (s *adminServiceImpl) BatchSetGroupRPMOverrides(ctx context.Context, groupID int64, entries []GroupRPMOverrideInput) error {
+	if s.userGroupRateRepo == nil {
+		return nil
+	}
+	return s.userGroupRateRepo.SyncGroupRPMOverrides(ctx, groupID, entries)
 }
 
 func (s *adminServiceImpl) UpdateGroupSortOrders(ctx context.Context, updates []GroupSortOrderUpdate) error {

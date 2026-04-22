@@ -63,6 +63,7 @@ func TestAPIContracts(t *testing.T) {
 					"balance_notify_threshold": null,
 					"balance_notify_extra_emails": null,
 					"total_recharged": 0,
+					"rpm_limit": 0,
 					"run_mode": "standard"
 				}
 			}`,
@@ -215,6 +216,7 @@ func TestAPIContracts(t *testing.T) {
 						"fallback_group_id_on_invalid_request": null,
 						"require_oauth_only": false,
 						"require_privacy_set": false,
+						"rpm_limit": 0,
 						"created_at": "2025-01-02T03:04:05Z",
 						"updated_at": "2025-01-02T03:04:05Z"
 					}
@@ -569,6 +571,7 @@ func TestAPIContracts(t *testing.T) {
 					"doc_url": "https://docs.example.com",
 					"default_concurrency": 5,
 					"default_balance": 1.25,
+					"default_user_rpm_limit": 0,
 					"default_subscriptions": [],
 					"enable_model_fallback": false,
 					"fallback_model_anthropic": "claude-3-5-sonnet-20241022",

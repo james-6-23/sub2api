@@ -483,6 +483,51 @@ func (h *GroupHandler) BatchSetGroupRateMultipliers(c *gin.Context) {
 	response.Success(c, gin.H{"message": "Rate multipliers updated successfully"})
 }
 
+// BatchSetGroupRPMOverridesRequest 批量设置分组 RPM 覆盖的请求体
+type BatchSetGroupRPMOverridesRequest struct {
+	Entries []service.GroupRPMOverrideInput `json:"entries" binding:"required"`
+}
+
+// ClearGroupRPMOverrides handles clearing all RPM overrides for a group
+// DELETE /api/v1/admin/groups/:id/rpm-overrides
+func (h *GroupHandler) ClearGroupRPMOverrides(c *gin.Context) {
+	groupID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid group ID")
+		return
+	}
+
+	if err := h.adminService.ClearGroupRPMOverrides(c.Request.Context(), groupID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"message": "RPM overrides cleared successfully"})
+}
+
+// BatchSetGroupRPMOverrides handles batch setting RPM overrides for a group
+// PUT /api/v1/admin/groups/:id/rpm-overrides
+func (h *GroupHandler) BatchSetGroupRPMOverrides(c *gin.Context) {
+	groupID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid group ID")
+		return
+	}
+
+	var req BatchSetGroupRPMOverridesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+
+	if err := h.adminService.BatchSetGroupRPMOverrides(c.Request.Context(), groupID, req.Entries); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, gin.H{"message": "RPM overrides updated successfully"})
+}
+
 // UpdateSortOrderRequest represents the request to update group sort orders
 type UpdateSortOrderRequest struct {
 	Updates []struct {

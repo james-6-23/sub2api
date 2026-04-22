@@ -149,6 +149,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 				user.FieldBalanceNotifyThreshold,
 				user.FieldBalanceNotifyExtraEmails,
 				user.FieldTotalRecharged,
+				user.FieldRpmLimit,
 			)
 		}).
 		WithGroup(func(q *dbent.GroupQuery) {
@@ -175,6 +176,7 @@ func (r *apiKeyRepository) GetByKeyForAuth(ctx context.Context, key string) (*se
 				group.FieldAllowMessagesDispatch,
 				group.FieldDefaultMappedModel,
 				group.FieldMessagesDispatchModelConfig,
+				group.FieldRpmLimit,
 			)
 		}).
 		Only(ctx)

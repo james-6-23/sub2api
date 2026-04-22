@@ -82,6 +82,12 @@ type apiKeyRateLimitLoader interface {
 
 // BillingCacheService 计费缓存服务
 // 负责余额和订阅数据的缓存管理，提供高性能的计费资格检查
+// groupRPMOverrideResolver 解析 (用户, 分组) 的 RPM 覆盖值。
+// 由 BillingCacheService 在 checkRPM 中调用；实现方可以自带缓存以降低 DB 压力。
+type groupRPMOverrideResolver interface {
+	Resolve(ctx context.Context, userID, groupID int64) *int
+}
+
 type BillingCacheService struct {
 	cache                 BillingCache
 	userRepo              UserRepository
@@ -90,6 +96,7 @@ type BillingCacheService struct {
 	userRPMCache          UserRPMCache
 	cfg                   *config.Config
 	circuitBreaker        *billingCircuitBreaker
+	rpmOverrideResolver   groupRPMOverrideResolver
 
 	cacheWriteChan     chan cacheWriteTask
 	cacheWriteWg       sync.WaitGroup
@@ -123,6 +130,11 @@ func NewBillingCacheService(cache BillingCache, userRepo UserRepository, subRepo
 // NewBillingCacheService 既有签名（多个测试与构造点依赖此签名）。
 func (s *BillingCacheService) SetUserRPMCache(cache UserRPMCache) {
 	s.userRPMCache = cache
+}
+
+// SetGroupRPMOverrideResolver 注入 (用户, 分组) RPM 覆盖解析器。
+func (s *BillingCacheService) SetGroupRPMOverrideResolver(resolver groupRPMOverrideResolver) {
+	s.rpmOverrideResolver = resolver
 }
 
 // Stop 关闭缓存写入工作池
@@ -681,24 +693,53 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 	return nil
 }
 
-// checkRPM 执行两级 RPM 限流，采用 fallback 语义：
+// checkRPM 执行 RPM 限流，级联回落（命中即停，每次请求只增加一个 Redis 计数器）：
 //
-//   - 若 Group.RPMLimit > 0：按 (用户, 分组) 聚合计数并与 Group.RPMLimit 比较；超限返回 ErrGroupRPMExceeded。
-//   - 否则若 User.RPMLimit > 0：按用户跨所有分组聚合计数并与 User.RPMLimit 比较；超限返回 ErrUserRPMExceeded。
-//   - 两者都未设置或为 0：不限流。
+//  1. 最高：(用户, 分组) 专属 rpm_override
+//     - override > 0：按 override 限流（user-group 维度计数）
+//     - override == 0：该用户在该分组显式不限流
+//  2. 次之：group.RPMLimit > 0 → 按分组 RPM 限流（user-group 维度计数）
+//     这是该分组的统一容量限制，一旦配置即接管该用户在该分组的限流
+//  3. 兜底：user.RPMLimit > 0 → 按用户 RPM 限流（user 维度计数）
+//     仅在分组未设置 rpm_limit 时生效，扮演该用户的全局默认天花板
+//  4. 全部为 0 / 不存在 → 不限流
 //
 // 设计要点：
-//   - 为每个请求只计入一个 Redis 键，避免无意义的双重计数（如分组已设时不再增加用户级键，语义更清晰）。
-//   - 计数使用 (user, group) 或 user 维度而非 api_key 维度，杜绝“同一用户创建多个 Key 绕过 RPM”的路径。
+//   - "谁更具体谁说了算"：override 定义到 (user, group) 粒度，最具体；分组次之；用户最泛。
+//   - 每个请求只命中一个计数器：命中 override/group → rpm:ug:{uid}:{gid}:{min}，命中 user 兜底 → rpm:u:{uid}:{min}。
+//   - 计数使用 (user, group) 或 user 维度而非 api_key 维度，杜绝"同一用户创建多个 Key 绕过 RPM"的路径。
 //   - Redis 故障一律 fail-open（打 warning，不阻塞业务）。
-//   - 这里采用“计入后对比”的方式，等价于超出限额即拒绝；即使某一次因 Redis 故障被 fail-open 放行，
+//   - "计入后对比"语义等价于"超出限额即拒绝"，即使某次因 Redis 故障被 fail-open 放行，
 //     下一次窗口内命中的请求仍会被正确计数与拒绝。
 func (s *BillingCacheService) checkRPM(ctx context.Context, user *User, group *Group) error {
 	if s == nil || s.userRPMCache == nil || user == nil {
 		return nil
 	}
 
-	// 分组 RPM 优先
+	// 第一级：(用户, 分组) 专属 rpm_override —— 最具体，独占决策
+	if group != nil && s.rpmOverrideResolver != nil {
+		if override := s.rpmOverrideResolver.Resolve(ctx, user.ID, group.ID); override != nil {
+			if *override == 0 {
+				// 显式不限流
+				return nil
+			}
+			count, err := s.userRPMCache.IncrementUserGroupRPM(ctx, user.ID, group.ID)
+			if err != nil {
+				logger.LegacyPrintf(
+					"service.billing_cache",
+					"Warning: group rpm increment failed for user=%d group=%d: %v",
+					user.ID, group.ID, err,
+				)
+				return nil // fail-open
+			}
+			if count > *override {
+				return ErrGroupRPMExceeded
+			}
+			return nil
+		}
+	}
+
+	// 第二级：group.RPMLimit —— 分组统一容量，设置即接管
 	if group != nil && group.RPMLimit > 0 {
 		count, err := s.userRPMCache.IncrementUserGroupRPM(ctx, user.ID, group.ID)
 		if err != nil {
@@ -715,7 +756,7 @@ func (s *BillingCacheService) checkRPM(ctx context.Context, user *User, group *G
 		return nil
 	}
 
-	// 分组未设 → 回落到用户级 RPM
+	// 第三级：user.RPMLimit —— 全局兜底，仅在分组未设时生效
 	if user.RPMLimit > 0 {
 		count, err := s.userRPMCache.IncrementUserRPM(ctx, user.ID)
 		if err != nil {

@@ -848,6 +848,8 @@ export default {
     description: 'Manage your account information and settings',
     accountBalance: 'Account Balance',
     concurrencyLimit: 'Concurrency Limit',
+    rpmLimit: 'RPM Limit',
+    rpmUnlimited: 'Unlimited',
     memberSince: 'Member Since',
     administrator: 'Administrator',
     user: 'User',
@@ -1381,8 +1383,8 @@ export default {
       updating: 'Updating...',
       form: {
         rpmLimit: 'Requests Per Minute (RPM)',
-        rpmLimitPlaceholder: '0 = unlimited (falls back to system default)',
-        rpmLimitHint: 'Max requests per minute for this user; 0 = unlimited. Only applied when the target group has no rpm_limit set.'
+        rpmLimitPlaceholder: '0 = unlimited',
+        rpmLimitHint: 'Max requests per minute for this user; 0 = unlimited. Acts as a fallback only when the group has no rpm_limit set.'
       },
       columns: {
         user: 'User',
@@ -1595,6 +1597,10 @@ export default {
         name: 'Name',
         platform: 'Platform',
         rateMultiplier: 'Rate Multiplier',
+        rpmOverride: 'RPM Override',
+        rpmOverrideHint: 'Per-user RPM cap in this group; empty = group default; 0 = unlimited',
+        rateDefault: 'default',
+        rpmDefault: 'default',
         type: 'Type',
         accounts: 'Accounts',
         capacity: 'Capacity',
@@ -1624,7 +1630,7 @@ export default {
         exclusive: 'Exclusive Group',
         rpmLimit: 'Requests Per Minute (RPM)',
         rpmLimitPlaceholder: '0 = unlimited',
-        rpmLimitHint: 'Max requests per minute for each user in this group; 0 = unlimited. Falls back to user-level RPM when not set here.'
+        rpmLimitHint: 'Max requests per minute for each user in this group; 0 = unlimited. Once set, it takes over per-user rate limiting in this group (overrides the user-level rpm_limit fallback).'
       },
       enterGroupName: 'Enter group name',
       optionalDescription: 'Optional description',
@@ -1656,6 +1662,12 @@ export default {
       rateMultipliers: 'Rate Multipliers',
       rateMultipliersTitle: 'Group Rate Multipliers',
       addUserRate: 'Add User Rate Multiplier',
+      rpmOverrides: 'RPM Overrides',
+      rpmOverridesTitle: 'Group RPM Overrides',
+      addUserRpm: 'Add User RPM Override',
+      noRpmOverrides: 'No users have an RPM override yet',
+      rpmSaved: 'RPM overrides saved',
+      groupRpmDefault: 'Group default RPM',
       searchUserPlaceholder: 'Search user email...',
       noRateMultipliers: 'No user rate multipliers configured',
       rateUpdated: 'Rate multiplier updated',
@@ -4397,7 +4409,7 @@ export default {
         defaultConcurrency: 'Default Concurrency',
         defaultConcurrencyHint: 'Maximum concurrent requests for new users',
         defaultUserRpmLimit: 'Default User RPM Limit',
-        defaultUserRpmLimitHint: 'Default max requests per minute for new users; 0 = unlimited. Only applied when the target group has no rpm_limit set.',
+        defaultUserRpmLimitHint: 'Default max requests per minute for new users; 0 = unlimited. Only applied at new user creation.',
         defaultSubscriptions: 'Default Subscriptions',
         defaultSubscriptionsHint: 'Auto-assign these subscriptions when a new user is created or registered',
         addDefaultSubscription: 'Add Default Subscription',

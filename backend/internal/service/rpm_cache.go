@@ -21,9 +21,9 @@ type RPMCache interface {
 // 设计要点：
 //   - 覆盖两种限流粒度：
 //     1) 用户在单个分组内：按 user_id + group_id 聚合，键 rpm:ug:{userID}:{groupID}:{minute}，
-//        用于 Group.RPMLimit 限额（由管理员按分组配置）。
+//     用于 Group.RPMLimit 限额（由管理员按分组配置）。
 //     2) 用户跨所有分组：按 user_id 聚合，键 rpm:u:{userID}:{minute}，
-//        用于 User.RPMLimit 限额（由管理员在用户上配置）。
+//     用于 User.RPMLimit 限额（由管理员在用户上配置）。
 //   - 两类计数彼此独立：任一超限即可触发 429；不会相互影响。
 //   - 通过按 user 聚合（而不是按 api_key），杜绝“同一用户创建多个 Key 绕过 RPM 限制”的路径。
 //   - 计数窗口：固定分钟窗口（基于 Redis 服务端时间，避免多实例时钟偏差）。

@@ -508,5 +508,13 @@ func (s *stubAdminService) ReplaceUserGroup(ctx context.Context, userID, oldGrou
 	return &service.ReplaceUserGroupResult{MigratedKeys: 0}, nil
 }
 
+func (s *stubAdminService) BatchSetGroupRPMOverrides(ctx context.Context, groupID int64, entries []service.GroupRPMOverrideInput) error {
+	return nil
+}
+
+func (s *stubAdminService) ClearGroupRPMOverrides(ctx context.Context, groupID int64) error {
+	return nil
+}
+
 // Ensure stub implements interface.
 var _ service.AdminService = (*stubAdminService)(nil)

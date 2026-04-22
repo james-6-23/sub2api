@@ -27,8 +27,16 @@ func (s *userGroupRateRepoStubForGroupRate) GetByUserID(_ context.Context, _ int
 	panic("unexpected GetByUserID call")
 }
 
+func (s *userGroupRateRepoStubForGroupRate) GetByUserIDs(_ context.Context, _ []int64) (map[int64]map[int64]float64, error) {
+	panic("unexpected GetByUserIDs call")
+}
+
 func (s *userGroupRateRepoStubForGroupRate) GetByUserAndGroup(_ context.Context, _, _ int64) (*float64, error) {
 	panic("unexpected GetByUserAndGroup call")
+}
+
+func (s *userGroupRateRepoStubForGroupRate) GetRPMOverrideByUserAndGroup(_ context.Context, _, _ int64) (*int, error) {
+	panic("unexpected GetRPMOverrideByUserAndGroup call")
 }
 
 func (s *userGroupRateRepoStubForGroupRate) GetByGroupID(_ context.Context, groupID int64) ([]UserGroupRateEntry, error) {
@@ -48,6 +56,14 @@ func (s *userGroupRateRepoStubForGroupRate) SyncGroupRateMultipliers(_ context.C
 	return s.syncGroupErr
 }
 
+func (s *userGroupRateRepoStubForGroupRate) SyncGroupRPMOverrides(_ context.Context, _ int64, _ []GroupRPMOverrideInput) error {
+	panic("unexpected SyncGroupRPMOverrides call")
+}
+
+func (s *userGroupRateRepoStubForGroupRate) ClearGroupRPMOverrides(_ context.Context, _ int64) error {
+	panic("unexpected ClearGroupRPMOverrides call")
+}
+
 func (s *userGroupRateRepoStubForGroupRate) DeleteByGroupID(_ context.Context, groupID int64) error {
 	s.deletedGroupIDs = append(s.deletedGroupIDs, groupID)
 	return s.deleteByGroupErr
@@ -59,11 +75,12 @@ func (s *userGroupRateRepoStubForGroupRate) DeleteByUserID(_ context.Context, _ 
 
 func TestAdminService_GetGroupRateMultipliers(t *testing.T) {
 	t.Run("returns entries for group", func(t *testing.T) {
+		rate1, rate2 := 1.5, 0.8
 		repo := &userGroupRateRepoStubForGroupRate{
 			getByGroupIDData: map[int64][]UserGroupRateEntry{
 				10: {
-					{UserID: 1, UserName: "alice", UserEmail: "alice@test.com", RateMultiplier: 1.5},
-					{UserID: 2, UserName: "bob", UserEmail: "bob@test.com", RateMultiplier: 0.8},
+					{UserID: 1, UserName: "alice", UserEmail: "alice@test.com", RateMultiplier: &rate1},
+					{UserID: 2, UserName: "bob", UserEmail: "bob@test.com", RateMultiplier: &rate2},
 				},
 			},
 		}
@@ -74,9 +91,11 @@ func TestAdminService_GetGroupRateMultipliers(t *testing.T) {
 		require.Len(t, entries, 2)
 		require.Equal(t, int64(1), entries[0].UserID)
 		require.Equal(t, "alice", entries[0].UserName)
-		require.Equal(t, 1.5, entries[0].RateMultiplier)
+		require.NotNil(t, entries[0].RateMultiplier)
+		require.Equal(t, 1.5, *entries[0].RateMultiplier)
 		require.Equal(t, int64(2), entries[1].UserID)
-		require.Equal(t, 0.8, entries[1].RateMultiplier)
+		require.NotNil(t, entries[1].RateMultiplier)
+		require.Equal(t, 0.8, *entries[1].RateMultiplier)
 	})
 
 	t.Run("returns nil when repo is nil", func(t *testing.T) {

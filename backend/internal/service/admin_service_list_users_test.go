@@ -86,6 +86,18 @@ func (s *userGroupRateRepoStubForListUsers) DeleteByUserID(_ context.Context, us
 	panic("unexpected DeleteByUserID call")
 }
 
+func (s *userGroupRateRepoStubForListUsers) GetRPMOverrideByUserAndGroup(_ context.Context, _, _ int64) (*int, error) {
+	return nil, nil
+}
+
+func (s *userGroupRateRepoStubForListUsers) SyncGroupRPMOverrides(_ context.Context, _ int64, _ []GroupRPMOverrideInput) error {
+	panic("unexpected SyncGroupRPMOverrides call")
+}
+
+func (s *userGroupRateRepoStubForListUsers) ClearGroupRPMOverrides(_ context.Context, _ int64) error {
+	panic("unexpected ClearGroupRPMOverrides call")
+}
+
 func TestAdminService_ListUsers_BatchRateFallbackToSingle(t *testing.T) {
 	userRepo := &userRepoStubForListUsers{
 		users: []User{
